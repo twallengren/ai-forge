@@ -41,8 +41,8 @@ public class OllamaWorker extends QueueBasedAIWorker {
     }
 
     @Override
-    protected String processRequest(AIRequest request) {
-        LOGGER.atInfo().log("Processing request: {}", request);
+    protected Response<AiMessage> processRequest(AIRequest request) {
+        LOGGER.atInfo().log("Processing request: {}", request.prompt());
         String contextJson = "";
         try {
             contextJson = objectMapper.writeValueAsString(request.context());
@@ -51,8 +51,7 @@ public class OllamaWorker extends QueueBasedAIWorker {
         }
         SystemMessage systemMessage = SystemMessage.from(contextJson);
         UserMessage userMessage = UserMessage.from(request.prompt());
-        Response<AiMessage> response = chatLanguageModel.generate(systemMessage, userMessage);
-        return response.content().text();
+        return chatLanguageModel.generate(systemMessage, userMessage);
     }
 
     @Override

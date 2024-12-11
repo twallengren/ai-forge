@@ -1,8 +1,13 @@
 package aiforge.ai;
 
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.model.output.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,6 +22,7 @@ public abstract class QueueBasedAIWorker implements AIWorker {
 
     private final BlockingQueue<AIRequest> requestQueue = new LinkedBlockingQueue<>();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Map<String,String> responseMap = new HashMap<>();
 
     public QueueBasedAIWorker() {
         LOGGER.atInfo().log("Initializing QueueBasedAIWorker...");
@@ -25,7 +31,7 @@ public abstract class QueueBasedAIWorker implements AIWorker {
 
     @Override
     public void submitRequest(AIRequest request) {
-        LOGGER.atInfo().log("Submitting request to the queue: {}", request);
+        LOGGER.atInfo().log("Submitting request to the queue: {}", request.prompt());
         requestQueue.add(request);
     }
 
@@ -33,6 +39,15 @@ public abstract class QueueBasedAIWorker implements AIWorker {
     public void shutdown() {
         LOGGER.atInfo().log("Shutting down QueueBasedAIWorker...");
         executor.shutdownNow();
+    }
+
+    @Override
+    public Optional<String> getResponse(String requestId) {
+        if (responseMap.containsKey(requestId)) {
+            return Optional.of(responseMap.get(requestId));
+        } else {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -43,9 +58,9 @@ public abstract class QueueBasedAIWorker implements AIWorker {
             while (true) {
                 LOGGER.atInfo().log("Waiting to take a request from the queue...");
                 AIRequest request = requestQueue.take();
-                LOGGER.atInfo().log("Processing request: {}", request);
-                String response = processRequest(request);
-                handleResponse(response);
+                LOGGER.atInfo().log("Processing request: {}", request.prompt());
+                Response<AiMessage> response = processRequest(request);
+                responseMap.put(request.id(), response.content().text());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -59,14 +74,5 @@ public abstract class QueueBasedAIWorker implements AIWorker {
      * @param request The AIRequest object.
      * @return The response as a String.
      */
-    protected abstract String processRequest(AIRequest request);
-
-    /**
-     * Hook for handling responses after processing.
-     *
-     * @param response The response string.
-     */
-    protected void handleResponse(String response) {
-        LOGGER.atInfo().log("Response: {}", response);
-    }
+    protected abstract Response<AiMessage> processRequest(AIRequest request);
 }
