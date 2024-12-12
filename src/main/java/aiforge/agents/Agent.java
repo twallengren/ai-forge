@@ -17,6 +17,12 @@ public record Agent(String name, String purpose, Context context, Memory memory,
         return new Agent(name, purpose, context, new Memory(), worker);
     }
 
+    public void run() {
+        Task task = createTask();
+        LOGGER.atInfo().log("{}: Task generated: {}", name, task.description());
+        performTask(task);
+    }
+
     public Task createTask() {
         LOGGER.atInfo().log("{}: Generating a new task...", name);
 
@@ -56,16 +62,16 @@ public record Agent(String name, String purpose, Context context, Memory memory,
 
         // Create and submit the AIRequest
         AIRequest aiRequest = AIRequest.of(requestContext, prompt);
-        worker.submitRequest(aiRequest);
+        String requestId = worker.submitRequest(aiRequest);
         LOGGER.atInfo().log("{}: Create task request submitted to AI worker", name);
 
         // Poll the AI worker for a response
         Optional<String> response = Optional.empty();
         while (response.isEmpty()) {
             LOGGER.atInfo().log("{}: Polling AI worker for response...", name);
-            response = worker.getResponse(aiRequest.id());
+            response = worker.getResponse(requestId);
             if (response.isEmpty()) {
-                LOGGER.atInfo().log("{}: No response yet, waiting 10 second before polling again...", name);
+                LOGGER.atInfo().log("{}: No response yet, waiting 10 seconds before polling again...", name);
                 try {
                     Thread.sleep(10000);
                 } catch (InterruptedException e) {
@@ -76,4 +82,54 @@ public record Agent(String name, String purpose, Context context, Memory memory,
 
         return new Task(response.get(), context, memory);
     }
+
+    public void performTask(Task task) {
+        LOGGER.atInfo().log("{}: Performing task...", name);
+
+        // Combine agent context, memory, and a system prompt into the request context
+        Map<String, Object> requestContext = new HashMap<>();
+        requestContext.put("context", context.data());
+        requestContext.put("memory", memory.getMemory());
+        requestContext.put("system_prompt", String.format(
+                "I am an agent tasked with the following purpose: '%s'.\n\n" +
+                        "You are a highly capable and creative AI assistant specializing in generating detailed, actionable content to help me achieve my purpose. " +
+                        "Your task is to respond with updates that directly address the prompt provided below, formatted to be appended to my memory.\n\n" +
+                        "Requirements:\n" +
+                        "1. Be concise and easy to read, formatted as a bulleted list.\n" +
+                        "2. Focus only on information relevant to the task.\n" +
+                        "3. Avoid repetition of previously provided memory updates.\n" +
+                        "4. Maintain consistency with the provided context and memory.\n\n" +
+                        "Output format:\n" +
+                        "- **Memory Updates**: A bulleted list of new information to append to the agent's memory.",
+                purpose
+        ));
+
+        // The task description is the prompt
+        String prompt = task.description();
+
+        // Create and submit the AIRequest
+        AIRequest aiRequest = AIRequest.of(requestContext, prompt);
+        String requestId = worker.submitRequest(aiRequest);
+        LOGGER.atInfo().log("{}: Complete task request submitted to AI worker", name);
+
+        // Poll the AI worker for a response
+        Optional<String> response = Optional.empty();
+        while (response.isEmpty()) {
+            LOGGER.atInfo().log("{}: Polling AI worker for response...", name);
+            response = worker.getResponse(requestId);
+            if (response.isEmpty()) {
+                LOGGER.atInfo().log("{}: No response yet, waiting 10 seconds before polling again...", name);
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    LOGGER.error("Task completion thread interrupted", e);
+                }
+            }
+        }
+
+        // Append the response to memory
+        memory.append(response.get());
+        LOGGER.atInfo().log("{}: Task completed and memory updated: {}", name, response.get());
+    }
+
 }

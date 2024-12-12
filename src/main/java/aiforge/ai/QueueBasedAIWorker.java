@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -30,9 +31,12 @@ public abstract class QueueBasedAIWorker implements AIWorker {
     }
 
     @Override
-    public void submitRequest(AIRequest request) {
+    public String submitRequest(AIRequest request) {
         LOGGER.atInfo().log("Submitting request to the queue: {}", request.prompt());
-        requestQueue.add(request);
+        String requestId = UUID.randomUUID().toString();
+        AIRequest requestWithId = AIRequest.of(request, requestId);
+        requestQueue.add(requestWithId);
+        return requestId;
     }
 
     @Override
@@ -44,7 +48,7 @@ public abstract class QueueBasedAIWorker implements AIWorker {
     @Override
     public Optional<String> getResponse(String requestId) {
         if (responseMap.containsKey(requestId)) {
-            return Optional.of(responseMap.get(requestId));
+            return Optional.of(responseMap.remove(requestId));
         } else {
             return Optional.empty();
         }

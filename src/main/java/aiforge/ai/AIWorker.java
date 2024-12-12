@@ -7,8 +7,9 @@ public interface AIWorker {
      * Submit a request to the AI worker.
      *
      * @param request The AIRequest object containing context and prompt.
+     * @return The request ID
      */
-    void submitRequest(AIRequest request);
+    String submitRequest(AIRequest request);
 
     Optional<String> getResponse(String requestId);
 

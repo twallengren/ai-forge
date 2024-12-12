@@ -36,7 +36,7 @@ public class OllamaWorker extends QueueBasedAIWorker {
                 .baseUrl(baseUrl)
                 .modelName(modelName)
                 .temperature(0.8)
-                .timeout(Duration.ofSeconds(120))
+                .timeout(Duration.ofSeconds(5*60))
                 .build();
     }
 

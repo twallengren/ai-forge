@@ -18,7 +18,7 @@ public class Application {
     public static void main(String[] args) {
 
         LOGGER.atInfo().log("Starting Llama AI worker...");
-        AIWorker worker = new OllamaWorker("tinyllama");
+        AIWorker worker = new OllamaWorker("llama3");
 
         LOGGER.atInfo().log("Creating agent...");
         Context context = new Context(Map.of(
@@ -47,10 +47,8 @@ public class Application {
         Agent agent = Agent.create("CharacterAgent", purpose, context, worker);
         LOGGER.atInfo().log("Agent created");
 
-        LOGGER.atInfo().log("Creating task...");
-        Task task = agent.createTask();
-
-        LOGGER.atInfo().log("Task generated: {}", task.description());
+        LOGGER.atInfo().log("Running...");
+        agent.run();
 
         LOGGER.atInfo().log("Shutting down worker...");
         worker.shutdown();
