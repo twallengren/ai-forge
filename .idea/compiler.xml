@@ -9,8 +9,5 @@
         <module name="ai-forge" />
       </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="ai-forge" target="18" />
-    </bytecodeTargetLevel>
   </component>
 </project>

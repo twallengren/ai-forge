@@ -1,10 +1,9 @@
 package aiforge;
 
-import aiforge.agents.Task;
 import aiforge.ai.AIWorker;
-import aiforge.ai.OllamaWorker;
 import aiforge.agents.Agent;
 import aiforge.agents.Context;
+import aiforge.ai.LocalOllamaWorker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,7 +17,7 @@ public class Application {
     public static void main(String[] args) {
 
         LOGGER.atInfo().log("Starting Llama AI worker...");
-        AIWorker worker = new OllamaWorker("llama3");
+        AIWorker worker = new LocalOllamaWorker();
 
         LOGGER.atInfo().log("Creating agent...");
         Context context = new Context(Map.of(
@@ -43,7 +42,7 @@ public class Application {
                         "backstory", "Eldor has lived for centuries, protecting the ancient forest from invaders and unraveling its mystical secrets."
                 )
         ));
-        String purpose = "Create a backstory for Eldor.";
+        String purpose = "Create a set of unique characters for an adventure novel.";
         Agent agent = Agent.create("CharacterAgent", purpose, context, worker);
         LOGGER.atInfo().log("Agent created");
 

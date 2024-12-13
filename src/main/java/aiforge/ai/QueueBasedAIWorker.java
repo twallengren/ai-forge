@@ -14,9 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 
-/**
- * Abstract class providing high-level queue-based request handling for AI workers.
- */
 public abstract class QueueBasedAIWorker implements AIWorker {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(QueueBasedAIWorker.class);
@@ -63,8 +60,8 @@ public abstract class QueueBasedAIWorker implements AIWorker {
                 LOGGER.atInfo().log("Waiting to take a request from the queue...");
                 AIRequest request = requestQueue.take();
                 LOGGER.atInfo().log("Processing request: {}", request.prompt());
-                Response<AiMessage> response = processRequest(request);
-                responseMap.put(request.id(), response.content().text());
+                AIResponse response = processRequest(request);
+                responseMap.put(request.id(), response.response());
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -72,11 +69,5 @@ public abstract class QueueBasedAIWorker implements AIWorker {
         }
     }
 
-    /**
-     * Abstract method to be implemented by subclasses for processing a single request.
-     *
-     * @param request The AIRequest object.
-     * @return The response as a String.
-     */
-    protected abstract Response<AiMessage> processRequest(AIRequest request);
+    protected abstract AIResponse processRequest(AIRequest request);
 }
