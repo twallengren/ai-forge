@@ -77,6 +77,8 @@ Character Agent: Designs compelling characters.
 World-Building Agent: Creates the setting and backstory.
 Plot Agent: Develops storylines and key events.
 Plot-Hole Agent: Identifies inconsistencies.
+(the list can be expanded based on project complexity)
+
 Agent Collaboration
 Each Agent autonomously determines tasks to fulfill its purpose, such as the Character Agent creating character biographies or the World-Building Agent generating maps.
 Agents contribute outputs to shared memory, enabling seamless collaboration.

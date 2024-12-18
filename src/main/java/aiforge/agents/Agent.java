@@ -2,6 +2,7 @@ package aiforge.agents;
 
 import aiforge.ai.AIRequest;
 import aiforge.ai.AIWorker;
+import aiforge.utils.OllamaRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,8 +14,10 @@ import java.util.Optional;
 
 public record Agent(String name, String purpose, Context context, Memory memory, AIWorker worker) {
 
+    private static final String GLOBAL_SYSTEM_PROMPT = loadGlobalSystemPrompt();
+    private static final String TASK_GENERATION_PROMPT = "Generate a task to help achieve your purpose.";
+
     private static final Logger LOGGER = LoggerFactory.getLogger(Agent.class);
-    private static String globalSystemPrompt;
 
     public static Agent create(String name, String purpose, Context context, AIWorker worker) {
         loadGlobalSystemPrompt();
@@ -30,18 +33,13 @@ public record Agent(String name, String purpose, Context context, Memory memory,
     public Task createTask() {
         LOGGER.atInfo().log("{}: Generating a new task...", name);
 
-        // Combine global system prompt with agent-specific instructions
-        String agentSpecificPrompt = String.format(
-                "You are an AGENT. Your purpose is: %s. You should identify tasks that fulfill this purpose while adhering to the system's guidelines.",
-                purpose
-        );
-        String formattedPrompt = globalSystemPrompt + "\n\n" + agentSpecificPrompt;
-
-        // Define the task generation prompt
-        String taskPrompt = "Generate a task description based on the provided context and memory.";
-
         // Create and submit the AIRequest
-        AIRequest aiRequest = AIRequest.of(formattedPrompt, taskPrompt);
+        AIRequest.StructuredFormat structuredFormat = new AIRequest.StructuredFormat()
+                .addProperty("TaskTitle", "string", true)
+                .addProperty("TaskDescription", "string", true)
+                .addProperty("TaskPriority", "integer", true)
+                .addArrayProperty("DetailedRequirements", "string", true);
+        AIRequest aiRequest = AIRequest.of(getSystemPrompt(Status.GENERATING_TASK), TASK_GENERATION_PROMPT, structuredFormat);
         String requestId = worker.submitRequest(aiRequest);
         LOGGER.atInfo().log("{}: Create task request submitted to AI worker", name);
 
@@ -51,9 +49,9 @@ public record Agent(String name, String purpose, Context context, Memory memory,
             LOGGER.atInfo().log("{}: Polling AI worker for response...", name);
             response = worker.getResponse(requestId);
             if (response.isEmpty()) {
-                LOGGER.atInfo().log("{}: No response yet, waiting 10 seconds before polling again...", name);
+                LOGGER.atInfo().log("{}: No response yet, waiting 2 seconds before polling again...", name);
                 try {
-                    Thread.sleep(10000);
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     LOGGER.error("Task generation thread interrupted", e);
                 }
@@ -66,18 +64,11 @@ public record Agent(String name, String purpose, Context context, Memory memory,
     public void performTask(Task task) {
         LOGGER.atInfo().log("{}: Performing task...", name);
 
-        // Combine global system prompt with agent-specific instructions
-        String agentSpecificPrompt = String.format(
-                "You are an AGENT. Your purpose is: %s. Execute the following task while adhering to the system's guidelines.",
-                purpose
-        );
-        String formattedPrompt = globalSystemPrompt + "\n\n" + agentSpecificPrompt;
-
         // The task description is the prompt
         String taskDescription = task.description();
 
         // Create and submit the AIRequest
-        AIRequest aiRequest = AIRequest.of(formattedPrompt, taskDescription);
+        AIRequest aiRequest = AIRequest.of(getSystemPrompt(Status.PERFORMING_TASK), taskDescription);
         String requestId = worker.submitRequest(aiRequest);
         LOGGER.atInfo().log("{}: Complete task request submitted to AI worker", name);
 
@@ -87,9 +78,9 @@ public record Agent(String name, String purpose, Context context, Memory memory,
             LOGGER.atInfo().log("{}: Polling AI worker for response...", name);
             response = worker.getResponse(requestId);
             if (response.isEmpty()) {
-                LOGGER.atInfo().log("{}: No response yet, waiting 10 seconds before polling again...", name);
+                LOGGER.atInfo().log("{}: No response yet, waiting 2 seconds before polling again...", name);
                 try {
-                    Thread.sleep(10000);
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     LOGGER.error("Task completion thread interrupted", e);
                 }
@@ -101,14 +92,33 @@ public record Agent(String name, String purpose, Context context, Memory memory,
         LOGGER.atInfo().log("{}: Task completed and memory updated: {}", name, response.get());
     }
 
-    private static void loadGlobalSystemPrompt() {
+    private String getSystemPrompt(Status status) {
+        return GLOBAL_SYSTEM_PROMPT + "\n\n" + getAdditionalSystemPrompt(status, purpose);
+    }
+
+    private static String loadGlobalSystemPrompt() {
         try {
             Path path = Paths.get(Agent.class.getClassLoader().getResource("aiforge/agents/system.txt").toURI());
-            globalSystemPrompt = Files.readString(path);
+            return Files.readString(path);
         } catch (Exception e) {
             LOGGER.error("Error loading global system prompt from resources: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to load global system prompt", e);
         }
+    }
+
+    private static String getAdditionalSystemPrompt(Status status, String purpose) {
+        String additionalPrompt = String.format("You are an AGENT. Your purpose is: %s. ", purpose);
+        additionalPrompt += switch (status) {
+            case GENERATING_TASK -> "";
+            case PERFORMING_TASK -> "Execute the task in the prompt while adhering to the system's guidelines.";
+            default -> "";
+        };
+        return additionalPrompt;
+    }
+
+    enum Status {
+        GENERATING_TASK,
+        PERFORMING_TASK
     }
 
 }

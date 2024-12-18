@@ -42,7 +42,7 @@ public class Application {
                         "backstory", "Eldor has lived for centuries, protecting the ancient forest from invaders and unraveling its mystical secrets."
                 )
         ));
-        String purpose = "Create a set of unique characters for an adventure novel.";
+        String purpose = "Create a set & setting for an adventure story";
         Agent agent = Agent.create("CharacterAgent", purpose, context, worker);
         LOGGER.atInfo().log("Agent created");
 
