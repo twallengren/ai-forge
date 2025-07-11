@@ -20,30 +20,8 @@ public class Application {
         AIWorker worker = new LocalOllamaWorker();
 
         LOGGER.atInfo().log("Creating agent...");
-        Context context = new Context(Map.of(
-                "genre", "Fantasy",
-                "worldSetting", Map.of(
-                        "name", "Ancient Forest",
-                        "features", Map.of(
-                                "terrain", "Dense with towering trees and hidden clearings",
-                                "climate", "Misty and cool, with magical glowing flora"
-                        ),
-                        "inhabitants", Map.of(
-                                "sentientSpecies", List.of("Elves", "Fairies", "Dryads"),
-                                "creatures", List.of("Unicorns", "Forest dragons", "Sprite swarms")
-                        )
-                ),
-                "mainCharacter", Map.of(
-                        "name", "Eldor",
-                        "traits", List.of("Wise", "Secretive", "Compassionate"),
-                        "age", "300 years",
-                        "role", "Keeper of ancient magical knowledge",
-                        "allies", List.of("The Seer of the Northern Glade", "Lyra the Fairy Queen"),
-                        "backstory", "Eldor has lived for centuries, protecting the ancient forest from invaders and unraveling its mystical secrets."
-                )
-        ));
-        String purpose = "Create a set & setting for an adventure story";
-        Agent agent = Agent.create("CharacterAgent", purpose, context, worker);
+        String purpose = "Develop a set of characters for a book about a community of talking catfish in the mississippi river";
+        Agent agent = Agent.create("WorldBuildingAgent", purpose, worker);
         LOGGER.atInfo().log("Agent created");
 
         LOGGER.atInfo().log("Running...");

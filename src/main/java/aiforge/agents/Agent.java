@@ -8,7 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -16,23 +15,22 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public record Agent(String name, String purpose, Context context, LongTermMemory longTermMemory, ShortTermMemory shortTermMemory, AIWorker worker) {
+public record Agent(String name, String purpose, LongTermMemory longTermMemory, ShortTermMemory shortTermMemory, AIWorker worker) {
 
     private static final AIRequest.StructuredFormat CREATE_TASK_FORMAT = new AIRequest.StructuredFormat()
             .addProperty("title", "string", true)
             .addProperty("description", "string", true)
             .addArrayProperty("detailedRequirements", "string", true);
     private static final AIRequest.StructuredFormat PERFORM_TASK_FORMAT = new AIRequest.StructuredFormat()
-            .addArrayProperty("detailsToAddToShortTermMemory", "string", true)
-            .addArrayProperty("detailsToAddToLongTermMemory", "string", true);
+            .addArrayProperty("shortTermMemory", "string", true);
 
     private static final String GLOBAL_SYSTEM_PROMPT = loadGlobalSystemPrompt();
     private static final String TASK_GENERATION_PROMPT = "Generate a task to help achieve your purpose.";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Agent.class);
 
-    public static Agent create(String name, String purpose, Context context, AIWorker worker) {
-        return new Agent(name, purpose, context, new LongTermMemory(), new ShortTermMemory(), worker);
+    public static Agent create(String name, String purpose, AIWorker worker) {
+        return new Agent(name, purpose, new LongTermMemory(), new ShortTermMemory(), worker);
     }
 
     public void run() {
@@ -100,10 +98,6 @@ public record Agent(String name, String purpose, Context context, LongTermMemory
                 
                 Context from Long-Term Memory:
                 %s
-                
-                Instructions:
-                - Complete the task and ensure all requirements are addressed.
-                - Use the provided context to enhance your response.
                 """,
                 taskPrompt,
                 shortTermContext.isEmpty() ? "None" : shortTermContext,
@@ -117,17 +111,11 @@ public record Agent(String name, String purpose, Context context, LongTermMemory
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode responseJson = objectMapper.readTree(response);
 
-            List<String> longTermDetails = objectMapper.convertValue(
-                    responseJson.get("detailsToAddToLongTermMemory"), new TypeReference<>() {});
             List<String> shortTermDetails = objectMapper.convertValue(
-                    responseJson.get("detailsToAddToShortTermMemory"), new TypeReference<>() {});
+                    responseJson.get("shortTermMemory"), new TypeReference<>() {});
 
             // Store details in the respective memory stores
-            longTermDetails.forEach(detail -> longTermMemory.storeMemory(name, new Memory(detail)));
             shortTermDetails.forEach(detail -> shortTermMemory.storeMemory(new Memory(detail)));
-
-            LOGGER.atInfo().log("{}: Memories updated. Long-term: {}, Short-term: {}",
-                    name, longTermDetails.size(), shortTermDetails.size());
         } catch (Exception e) {
             LOGGER.error("{}: Failed to parse or update memories: {}", name, e.getMessage(), e);
         }
@@ -165,18 +153,22 @@ public record Agent(String name, String purpose, Context context, LongTermMemory
     }
 
     private static String getAdditionalSystemPrompt(Status status, String purpose) {
-        String additionalPrompt = String.format("You are an AGENT. Your purpose is: %s. ", purpose);
+        String additionalPrompt = String.format("You are an AGENT. Your purpose is: %s. \n", purpose);
         additionalPrompt += switch (status) {
-            case GENERATING_TASK -> "";
+            case GENERATING_TASK -> """
+                    Generating a new task is a big responsibility and should serve to push the purpose forward in
+                    new, meaningful, and creative ways. Be mindful of the memory provided and make sure that new tasks
+                    serve to create new memories or enhance existing ones. We do not want to be creating tasks that
+                    result in redundant memories. Remember, the task should be clear, concise, and actionable.
+                    """;
             case PERFORMING_TASK -> """
-                Execute the task in the prompt while adhering to the system's guidelines.\s
-                Focus on completing the task fully and addressing all requirements.\s
-                After completing the task:
-                1. Identify key information that other agents would need (Long-Term Memory).
-                2. Identify temporary details you need to remember for your own context (Short-Term Memory).
-                Your responses should demonstrate that you have fully performed the task, with clear outputs or results.
-                Remember, you are PERFORMING the task, not analyzing or restating it.
-                \s""";
+                    Execute the task in the prompt while adhering to the system's guidelines.\s
+                    Focus on completing the task fully and addressing all requirements.\s
+                    Identify the key results and add those to your short term memory.
+                    Your short term memory will be used to enhance future tasks.
+                    Your responses should demonstrate that you have fully performed the task, with clear outputs or results.
+                    Remember, you are PERFORMING the task, not analyzing or restating it.
+                    \s""";
             default -> "";
         };
         return additionalPrompt;

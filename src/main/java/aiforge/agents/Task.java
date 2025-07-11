@@ -27,9 +27,12 @@ public record Task(String title, String description, List<String> detailedRequir
                 - Complete the task fully by addressing all requirements listed.
                 - Provide the final results in the following structured format:
                   {
-                      "longTermMemory": ["..."],
                       "shortTermMemory": ["..."]
                   }
+                - There should be an at least 1-to-1 relationship between the detailed requirements and the short-term memory items.
+                - Items in short term memory should NOT be a rephrasing of the requirements.
+                -- eg if the requirement is "Create a profile of a character named Bob", the short term memory should NOT be "Created a character named Bob".
+                -- Instead, it should be something like "Bob is a 35-year-old etc..."
                 - Ensure that your response clearly demonstrates completion of the task.
                 """,
                 title,
